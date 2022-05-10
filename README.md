@@ -61,7 +61,6 @@ More details can be found in `Tests` section below.
 
 - `python main.py -t 2` runs your AI against a random policy. Your AI should always win. 
 
-
 Because the -t 1 tests rely on how the random states are generated, you may have a correct implementation that fails it. Still, the test should be valuable for you to debug. We will mostly check the -t 2 tests to see if you are close to getting things right. As usual, the overall correctness is determined by manual grading, and the tests are just heuristics. 
 
 
@@ -69,9 +68,9 @@ Because the -t 1 tests rely on how the random states are generated, you may have
 
 The game gives you an opportunity for testing out many approaches that have been covered in the class. For instance, what kind of heuristic evaluation function can you use to improve the performance? Can you run some form of reinforcement learning to automatically come up with value estimates that can help the MCTS agent? 
 
-You can spend time to try out any strategy you like to maximize the strength of your AI agent within given computational budget. There will be a separate, apparently optional, assignment in Gradescope named "EC: Gomoku Competition" for you to submit your ai.py to, if you would like to participate in the competition. The submission deadline is the same as the due date of the PA. 
+You can spend time to try out any strategies you like, to maximize the strength of your AI agent within given computational budget. There will be a separate, completely optional, assignment in Gradescope named "EC: Gomoku Competition" for you to submit to, if you would like to participate in the competition. The submission deadline is the same as the due date of the PA. Implement all you need still only in ai.py and do not use any imports that fail to compile on the autograder. 
 
-Only work on this part if you are really interested and have the time. So we do not specify a fixed amount of extra credits, but submissions that perform well or implement interesting ideas will receive additional points. In fact, if you are aiming for A+ in the class (which will be determined by soft rules in the end), participating in this competition can be very useful. 
+Only work on this part if you are really interested and have the time. We do not specify a fixed amount of extra credits so that you feel any need of doing it for the points, but submissions that perform well and implement interesting ideas will receive additional credits. In fact, if you are aiming for A+ in the class (which will be determined by soft rules when we give grades at the end), participating in this competition can be very useful. 
 
 ## Tips/FAQ
 
