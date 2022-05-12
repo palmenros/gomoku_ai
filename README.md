@@ -6,7 +6,7 @@ Again, DO NOT publicly fork this repositiory.
 
 ## Due date
 
-May-24 11:59pm. 
+May-29 Sunday 11:59pm. 
 
 As usual, only submit the `ai.py` file on Gradescope. 
 
