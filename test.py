@@ -1,6 +1,9 @@
 # NOTE: do not modify this file
-from game import Game, WHITE, BLACK
-from ai import AI
+import random
+from game import Game, WHITE, BLACK, GRID_COUNT
+import ai
+import stock_ai
+import time
 
 TOL = 0.01
 
@@ -59,33 +62,55 @@ def deterministic_test():
 
         test_num += 1
 
-MIN_WINS = 9
+#MIN_WINS = 9
 NUM_PLAYS = 10
+
 def win_test():
     simulator = Game()
     wins = 0
+
+    sum_time = 0
+    num_moves = 0
+    max_time = -10000
+    started_by_new_ai = 0
+
     for play_i in range(NUM_PLAYS):
         print("play {}/{}".format(play_i + 1, NUM_PLAYS))
         simulator.reset(BLACK)
-        ai_play = False
+
+        ai_play = bool(random.getrandbits(1))
+        if ai_play:
+            new_ai_color = BLACK
+            print('New AI starts the game')
+            started_by_new_ai += 1
+        else:
+            new_ai_color = WHITE
+            print('Stock AI starts the game')
+
         while not simulator.game_over:
             if ai_play:
-                ai_player = AI(simulator.state())
+                start_time = time.time()
+                ai_player = ai.AI(simulator.state())
                 (r,c), _ = ai_player.mcts_search()
+                move_time = time.time() - start_time
+                sum_time += move_time
+                num_moves += 1
+                max_time = max(max_time, move_time)
             else:
-                (r,c) = simulator.rand_move()
+                ai_player = stock_ai.AI(simulator.state())
+                (r,c), _ = ai_player.mcts_search()
+                #(r,c) = simulator.rand_move()
 
             simulator.place(r, c)
             ai_play = not ai_play
 
-        if simulator.winner == WHITE:
-            print("AI won.")
+        if simulator.winner == new_ai_color:
+            print("New AI won.")
             wins += 1
         else:
-            print("Random player won.")
-        print()
+            print("Stock AI won.")
 
-    if wins < MIN_WINS:
-        print("FAILED")
-    else:
-        print("PASSED")
+    print(f'Average move time: {sum_time / num_moves} seconds')
+    print(f'Max move time: {max_time} seconds')
+    print(f'New AI won {round(100 * wins / NUM_PLAYS, 2)}% of matches ({wins} out of {NUM_PLAYS})')
+    print(f'New AI started {round(100 * started_by_new_ai / NUM_PLAYS, 2)}% of matches ({started_by_new_ai} out of {NUM_PLAYS})')
