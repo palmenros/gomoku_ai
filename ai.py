@@ -206,7 +206,7 @@ class ConsecutiveLine:
 
         if not self.end_open_end:
             ValueError('There is no open end')
-        return self.start[0] + dx, self.start[1] + dy
+        return self.end[0] + dx, self.end[1] + dy
 
 
 def other_color(color):
@@ -319,6 +319,14 @@ class Heuristic:
         def safe_is_color(x, y, col):
             return is_within_bounds(x, y) and grid[x][y] == col
 
+        def append_to_dict(d, k, v):
+            if k not in d:
+                d[k] = []
+            d[k].append(v)
+
+        def should_remove_line(l):
+            return l.num_open_ends < 1 and l.num_consecutive < 5
+
         # Handle first the same that we are placing
         for dir in DIRS:
             open_dict = self.open_end_dicts[dir][new_color]
@@ -337,7 +345,7 @@ class Heuristic:
                     if line.is_starting_end(x, y):
                         line.start = (x, y)
                         if safe_is_empty(x-dx, y-dy):
-                            open_dict[(x-dx, y-dy)] = [line]
+                            append_to_dict(open_dict, (x-dx, y-dy), line)
                         else:
                             line.start_open_end = False
                             line.num_open_ends -= 1
@@ -348,14 +356,17 @@ class Heuristic:
                     else:
                         line.end = (x, y)
                         if safe_is_empty(x+dx, y+dy):
-                            open_dict[(x + dx, y + dy)] = [line]
+                            append_to_dict(open_dict, (x + dx, y + dy), line)
                         else:
-                            line.start_open_end = False
+                            line.end_open_end = False
                             line.num_open_ends -= 1
 
                             if safe_is_color(x + dx, y + dy, new_color):
                                 raise ValueError("len(lines)=1, this shouldn't happen")
 
+                    if should_remove_line(line):
+                        # Remove this line
+                        self.lines[dir][new_color].remove(line)
                 else:
                     # Open end to two different lines, we need to merge them
 
@@ -394,7 +405,10 @@ class Heuristic:
                         open_dict[maximum.get_open_end()].append(new_line)
 
                     open_dict[(x, y)] = []
-                    self.lines[dir][new_color].append(new_line)
+
+                    if not should_remove_line(new_line):
+                        self.lines[dir][new_color].append(new_line)
+
             else:
                 # This point is isolated in this direction, add it anyway
                 has_open_start = safe_is_empty(x-dx, y-dy)
@@ -402,15 +416,16 @@ class Heuristic:
 
                 if has_open_start or has_open_end:
                     line = ConsecutiveLine((x, y), (x, y), has_open_start, has_open_end, dir, new_color, 1)
+
                     self.lines[dir][new_color].append(line)
 
                     open_dict[(x, y)] = []
 
                     if has_open_start:
-                        open_dict[line.get_open_start()] = [line]
+                        append_to_dict(open_dict, line.get_open_start(), line)
 
                     if has_open_end:
-                        open_dict[line.get_open_end()] = [line]
+                        append_to_dict(open_dict, line.get_open_end(), line)
 
         opposite_color = other_color(new_color)
 
@@ -421,14 +436,15 @@ class Heuristic:
                 # The point we are updating is already an end
                 lines = open_dict[(x, y)]
 
-                lines_to_delete = [line for line in lines if line.num_open_ends == 1]
-                lines = [line for line in lines if line.num_open_ends == 2]
+                def should_remove_line_after_removing_end(l):
+                    return l.num_open_ends <= 1 and l.num_consecutive < 5
+
+                lines_to_delete = [line for line in lines if should_remove_line_after_removing_end(line)]
+                lines = [line for line in lines if not should_remove_line_after_removing_end(line)]
 
                 # Delete all reference to the old line
                 for line in lines_to_delete:
                     self.lines[dir][opposite_color].remove(line)
-                    # Delete score of old lines
-                    self.score[opposite_color] -= line.cached_score
 
                 # Update still remaining lines to reflect that they have one less open end
                 for line in lines:
@@ -458,6 +474,16 @@ class Heuristic:
             for dir in DIRS:
                 for line in self.lines[dir][color]:
                     line.check(grid)
+                    open_ends = line.get_open_ends()
+                    if len(open_ends) == 0 and line.num_consecutive < 5:
+                        raise ValueError("Storing line with 0 open-ends")
+                    open_dict = self.open_end_dicts[dir][color]
+                    for open_end in open_ends:
+                        if open_end not in open_dict:
+                            raise ValueError('Open end not registered')
+
+                        if line not in open_dict[open_end]:
+                            raise ValueError('Line not registered in Open End')
 
         # Check open grid
         for color in COLORS:
@@ -467,6 +493,9 @@ class Heuristic:
                 open_dict = self.open_end_dicts[dir][color]
 
                 for (x, y), lines in open_dict.items():
+                    if len(lines) == 0:
+                        continue
+
                     if len(lines) > 2:
                         raise ValueError('At most 2 lines could have the same endpoint')
 
