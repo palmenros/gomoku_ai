@@ -32,7 +32,7 @@ def score_check():
             (r, c) = random.choice(simulator.get_actions())
             # (r, c) = simulator.rand_move()
 
-            long_run_heuristic.place(long_run_simulator.state()[0], r, c)
+            long_run_heuristic.place(r, c)
             simulator.place(r, c)
 
             # Will destroy random rng
@@ -95,7 +95,7 @@ def line_check_incremental():
             (r, c) = random.choice(simulator.get_actions())
             #(r, c) = simulator.rand_move()
 
-            incremental_heuristic.place(simulator.state()[0], r, c)
+            incremental_heuristic.place(r, c)
 
             # Will destroy random rng
             # state = simulator.state()

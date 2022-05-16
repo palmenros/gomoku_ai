@@ -43,7 +43,7 @@ class Node:
 
 # NOTE: deterministic_test() requires BUDGET = 1000
 # You can try higher or lower values to see how the AI's strength changes
-BUDGET = 1000
+BUDGET = 2500
 
 #[(0, 0), (0, 1), ..., (0, GRID_COUNT-1)]
 STARTING_HOR = set(((0, i) for i in range(GRID_COUNT)))
@@ -89,53 +89,6 @@ class ConsecutiveLine:
 
         self.num_consecutive = num_consecutive
         self.num_open_ends = len(self.get_open_ends())
-
-    def check(self, grid):
-        dx, dy = DIR_TO_DELTA[self.dir]
-        x, y = self.start
-
-        if self.num_open_ends == 0 and self.num_consecutive < 5:
-            raise ValueError("We shouldn't store consecutive useless lines without open ends")
-
-        for i in range(self.num_consecutive):
-            if grid[x][y] != self.color:
-                raise ValueError('Incorrect Consecutive Line')
-            x += dx
-            y += dy
-
-        if (x-dx, y-dy) != self.end:
-            raise ValueError('Incorrect end')
-
-        def is_within_bounds(x, y):
-            return 0 <= x < GRID_COUNT and 0 <= y < GRID_COUNT
-
-        def safe_is_empty(x, y):
-            return is_within_bounds(x, y) and grid[x][y] == EMPTY
-
-        def safe_check(x, y, col):
-            return is_within_bounds(x, y) and grid[x][y] == col
-
-        num_open_ends = 0
-
-        if self.start_open_end:
-            num_open_ends += 1
-            if not safe_is_empty(self.start[0]-dx, self.start[1] - dy):
-                raise ValueError('Incorrect Consecutive Line (Start end not EMPTY)')
-        else:
-            if safe_check(self.start[0]-dx, self.start[1]-dy, self.color):
-                raise ValueError('Incorrect Consecutive Line (Start end this line color)')
-
-        if self.end_open_end:
-            num_open_ends += 1
-
-            if not safe_is_empty(self.end[0] + dx, self.end[1] + dy):
-                raise ValueError('Incorrect Consecutive Line (End not EMPTY)')
-        else:
-            if safe_check(self.end[0] + dx, self.end[1] + dy, self.color):
-                raise ValueError('Incorrect Consecutive Line (End this line color)')
-
-        if num_open_ends != self.num_open_ends:
-            raise ValueError('Incorrect stored value of num_open_ends')
 
     def get_open_ends(self):
         dx, dy = DIR_TO_DELTA[self.dir]
@@ -183,11 +136,11 @@ class ConsecutiveLine:
                 return 0.5
             else:
                 return 1
-        raise ValueError('We should never reach this')
+        #raise ValueError('We should never reach this')
 
     def score(self, this_turn_color):
-        if self.num_open_ends == 0 and self.num_consecutive < 5:
-            raise ValueError("We shouldn't store consecutive useless lines without open ends")
+        # if self.num_open_ends == 0 and self.num_consecutive < 5:
+        #     raise ValueError("We shouldn't store consecutive useless lines without open ends")
 
         current_turn = self.color == this_turn_color
 
@@ -197,15 +150,15 @@ class ConsecutiveLine:
     def get_open_start(self):
         dx, dy = DIR_TO_DELTA[self.dir]
 
-        if not self.start_open_end:
-            ValueError('There is no open start')
+        # if not self.start_open_end:
+        #     ValueError('There is no open start')
         return self.start[0] - dx, self.start[1] - dy
 
     def get_open_end(self):
         dx, dy = DIR_TO_DELTA[self.dir]
 
-        if not self.end_open_end:
-            ValueError('There is no open end')
+        # if not self.end_open_end:
+        #     ValueError('There is no open end')
         return self.end[0] + dx, self.end[1] + dy
 
 
@@ -305,212 +258,6 @@ class Heuristic:
             starting_open_end = False
 
         return discovered_lines, open_ends_dict
-
-    def place(self, new_color, x, y):
-        self.simulator.place(x, y)
-        grid = self.simulator.state()[1]
-
-        def is_within_bounds(x, y):
-            return 0 <= x < GRID_COUNT and 0 <= y < GRID_COUNT
-
-        def safe_is_empty(x, y):
-            return is_within_bounds(x, y) and grid[x][y] == EMPTY
-
-        def safe_is_color(x, y, col):
-            return is_within_bounds(x, y) and grid[x][y] == col
-
-        def append_to_dict(d, k, v):
-            if k not in d:
-                d[k] = []
-            d[k].append(v)
-
-        def should_remove_line(l):
-            return l.num_open_ends < 1 and l.num_consecutive < 5
-
-        # Handle first the same that we are placing
-        for dir in DIRS:
-            open_dict = self.open_end_dicts[dir][new_color]
-            dx, dy = DIR_TO_DELTA[dir]
-            if (x, y) in open_dict:
-                # The point we are updating is already an end
-                lines = open_dict[(x, y)]
-
-                if len(lines) == 1:
-                    # Only open end of one part, no need to merge
-                    line = lines[0]
-
-                    open_dict[(x, y)] = []
-
-                    line.num_consecutive += 1
-                    if line.is_starting_end(x, y):
-                        line.start = (x, y)
-                        if safe_is_empty(x-dx, y-dy):
-                            append_to_dict(open_dict, (x-dx, y-dy), line)
-                        else:
-                            line.start_open_end = False
-                            line.num_open_ends -= 1
-
-                            if safe_is_color(x-dx, y-dy, new_color):
-                                raise ValueError("len(lines)=1, this shouldn't happen")
-
-                    else:
-                        line.end = (x, y)
-                        if safe_is_empty(x+dx, y+dy):
-                            append_to_dict(open_dict, (x + dx, y + dy), line)
-                        else:
-                            line.end_open_end = False
-                            line.num_open_ends -= 1
-
-                            if safe_is_color(x + dx, y + dy, new_color):
-                                raise ValueError("len(lines)=1, this shouldn't happen")
-
-                    if should_remove_line(line):
-                        # Remove this line
-                        self.lines[dir][new_color].remove(line)
-                else:
-                    # Open end to two different lines, we need to merge them
-
-                    # We find the minimum depending on the direction we're looking at and put in minimum, put the
-                    # other on maximum
-                    minimum : ConsecutiveLine = lines[0]
-                    maximum : ConsecutiveLine = lines[1]
-
-                    order_index = 0
-                    if dir == DIR_VER:
-                        order_index = 1
-
-                    if maximum.start[order_index] < minimum.start[order_index]:
-                        minimum, maximum = maximum, minimum
-
-                    # Merge minimum and maximum into a new line
-                    self.lines[dir][new_color].remove(minimum)
-                    self.lines[dir][new_color].remove(maximum)
-
-                    new_line = ConsecutiveLine(
-                        minimum.start,
-                        maximum.end,
-                        minimum.start_open_end,
-                        maximum.end_open_end,
-                        dir,
-                        new_color,
-                        1+minimum.num_consecutive + maximum.num_consecutive
-                    )
-
-                    if minimum.start_open_end:
-                        open_dict[minimum.get_open_start()].remove(minimum)
-                        open_dict[minimum.get_open_start()].append(new_line)
-
-                    if maximum.end_open_end:
-                        open_dict[maximum.get_open_end()].remove(maximum)
-                        open_dict[maximum.get_open_end()].append(new_line)
-
-                    open_dict[(x, y)] = []
-
-                    if not should_remove_line(new_line):
-                        self.lines[dir][new_color].append(new_line)
-
-            else:
-                # This point is isolated in this direction, add it anyway
-                has_open_start = safe_is_empty(x-dx, y-dy)
-                has_open_end = safe_is_empty(x+dx, y+dy)
-
-                if has_open_start or has_open_end:
-                    line = ConsecutiveLine((x, y), (x, y), has_open_start, has_open_end, dir, new_color, 1)
-
-                    self.lines[dir][new_color].append(line)
-
-                    open_dict[(x, y)] = []
-
-                    if has_open_start:
-                        append_to_dict(open_dict, line.get_open_start(), line)
-
-                    if has_open_end:
-                        append_to_dict(open_dict, line.get_open_end(), line)
-
-        opposite_color = other_color(new_color)
-
-        # Handle the opposite color
-        for dir in DIRS:
-            open_dict = self.open_end_dicts[dir][opposite_color]
-            if (x, y) in open_dict:
-                # The point we are updating is already an end
-                lines = open_dict[(x, y)]
-
-                def should_remove_line_after_removing_end(l):
-                    return l.num_open_ends <= 1 and l.num_consecutive < 5
-
-                lines_to_delete = [line for line in lines if should_remove_line_after_removing_end(line)]
-                lines = [line for line in lines if not should_remove_line_after_removing_end(line)]
-
-                # Delete all reference to the old line
-                for line in lines_to_delete:
-                    self.lines[dir][opposite_color].remove(line)
-
-                # Update still remaining lines to reflect that they have one less open end
-                for line in lines:
-                    line.num_open_ends -= 1
-                    if line.is_starting_end(x, y):
-                        line.start_open_end = False
-                    else:
-                        line.end_open_end = False
-
-                open_dict[(x, y)] = []
-
-        self.recalculate_score()
-
-    def recalculate_score(self):
-        self.score[BLACK] = 0
-        self.score[WHITE] = 0
-
-        for color in COLORS:
-            for dir in DIRS:
-                for line in self.lines[dir][color]:
-                    self.score[color] += line.score(self.simulator.state()[0])
-
-    def check(self):
-        grid = self.simulator.state()[1]
-
-        for color in COLORS:
-            for dir in DIRS:
-                for line in self.lines[dir][color]:
-                    line.check(grid)
-                    open_ends = line.get_open_ends()
-                    if len(open_ends) == 0 and line.num_consecutive < 5:
-                        raise ValueError("Storing line with 0 open-ends")
-                    open_dict = self.open_end_dicts[dir][color]
-                    for open_end in open_ends:
-                        if open_end not in open_dict:
-                            raise ValueError('Open end not registered')
-
-                        if line not in open_dict[open_end]:
-                            raise ValueError('Line not registered in Open End')
-
-        # Check open grid
-        for color in COLORS:
-            for dir in DIRS:
-                dx, dy = DIR_TO_DELTA[dir]
-
-                open_dict = self.open_end_dicts[dir][color]
-
-                for (x, y), lines in open_dict.items():
-                    if len(lines) == 0:
-                        continue
-
-                    if len(lines) > 2:
-                        raise ValueError('At most 2 lines could have the same endpoint')
-
-                    if grid[x][y] != EMPTY:
-                        raise ValueError('Open end is not EMPTY in grid')
-
-                    for line in lines:
-                        if (x, y) == (line.start[0] - dx, line.start[1] - dy):
-                            if not line.start_open_end:
-                                raise ValueError('Line does not have open start end')
-                        elif (x, y) == (line.end[0] + dx, line.end[1] + dy):
-                            if not line.end_open_end:
-                                raise ValueError('Line does not have open end')
-                        else:
-                            raise ValueError("Open dict points to line to whom it's not neither start or end point")
 
     def get_value_for_player(self, color):
         return self.score[color] - self.score[other_color(color)]
